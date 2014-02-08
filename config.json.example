@@ -1,0 +1,11 @@
+{
+    "repositories": [
+        {
+            "name": "my-repository",
+            "github": "git@github.com:my-user-name/my-repository.git",
+            "origin": "my-remote-repository:/path/to/my-repository.git",
+            "branches": ["master"]
+        }
+    ],
+    "tmp_dir": "/tmp"
+}

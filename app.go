@@ -15,7 +15,8 @@ func runCommand(dir, name string, args ...string) {
 	cmd.Env = os.Environ()
 	_, err := cmd.Output()
 	if err != nil {
-		fmt.Print(err)
+		fmt.Println(name, args)
+		fmt.Println(err)
 	}
 }
 
@@ -33,7 +34,7 @@ type Config struct {
 }
 
 type ResponseData struct {
-	repository Repository
+	Repo Repository `json:"repository"`
 }
 
 var RepositoryConfig Config
@@ -58,16 +59,28 @@ func (r *Repository) InitRepository() {
 	if exists {
 		return
 	}
+	fmt.Printf("Init repo: %s\n", r.Name)
 	runCommand(r.Conf.TmpDir, "git", "clone", r.Origin, r.Name)
 	runCommand(r.RepositoryDir(), "git", "remote", "add", "github", r.Github)
+	fmt.Printf("Done\n")
 }
 
 func (r *Repository) Checkout(branch string) {
 	runCommand(r.RepositoryDir(), "git", "checkout", branch)
 }
 
+func (r *Repository) Fetch() {
+	runCommand(r.RepositoryDir(), "git", "fetch", "github")
+}
+
 func (r *Repository) Pull(branch string) {
-	runCommand(r.RepositoryDir(), "git", "pull", "github", branch)
+	if branch == "master" {
+		runCommand(r.RepositoryDir(), "git", "checkout", "master")
+		runCommand(r.RepositoryDir(), "git", "pull", "github", "master")
+		return
+	}
+	runCommand(r.RepositoryDir(), "git", "branch", "-d", branch)
+	runCommand(r.RepositoryDir(), "git", "branch", branch, "github/"+branch)
 }
 
 func (r *Repository) PullDefault() {
@@ -88,18 +101,17 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	decoder.Decode(&data)
 	var repo Repository
 	for _, r := range RepositoryConfig.Repositories {
-		if r.Name == data.repository.Name {
+		if r.Name == data.Repo.Name {
 			repo = r
 			break
 		}
 	}
 	repo.Conf = RepositoryConfig
-	repo.PullDefault()
-	repo.PushDefault()
+	repo.Fetch()
 	for _, branch := range repo.Branches {
 		repo.Pull(branch)
-		repo.Push(branch)
 	}
+	repo.PushDefault()
 }
 
 func main() {
@@ -117,7 +129,6 @@ func main() {
 	r := bufio.NewReader(fi)
 	decoder := json.NewDecoder(r)
 	decoder.Decode(&RepositoryConfig)
-	fmt.Print(RepositoryConfig)
 	for _, repo := range RepositoryConfig.Repositories {
 		repo.Conf = RepositoryConfig
 		repo.InitRepository()

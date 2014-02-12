@@ -64,3 +64,4 @@ tramp
 
 #config
 config.json
+tmp/
